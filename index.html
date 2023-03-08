@@ -3,6 +3,7 @@
 	©2017 w1jp, Jon Pellant
 	171105 origination
 	171108 added sound
+	230306: refactoring sound due to changes in WebAudio architecture.
 -->
 <html>
 <head>
@@ -26,7 +27,7 @@
 			ppms: 0.5, // pixels/ms for animation
 			ttl: 5000, // time-to-live for pings
 			wpm: 12,
-			farnsworth: 20,
+			farnsworth: 17,
 			antColor: "white",
 			sigColor: "orange",
 			btnColor: '#333',
@@ -130,102 +131,99 @@
 		}
 		const drawButtons = () => {
 			let btnWidth = 30
-      let text = (z.sound)? '🔈':'🔇'; // 230306: updated due to browser pref.
-      let btn = new Vec2f(z.can.width-btnWidth-5, z.can.height-btnWidth-5)
-      z.ctx.save()
-      z.ctx.font = '14pt monospace'
-      z.ctx.textAlign = 'center'
-      z.ctx.textBaseline = 'middle'
-      z.ctx.fillStyle = z.btnColor
-      z.ctx.fillRect(btn.x, btn.y, btnWidth, btnWidth)
-      z.ctx.fillStyle = z.antColor
-      z.ctx.fillText(text,btn.x+btnWidth/2, btn.y+btnWidth/2)
-      z.ctx.restore()
-    }
-    const updatePings = (timer) => {
-    	z.pings.forEach((ping, i) => {
-    		let elapsed = timer-ping.start
-    		if (elapsed<0) elapsed = 0
-    			if (elapsed > z.ttl) z.pings.splice(i, 1)
-    				else {
-    					z.ctx.save()
-    					z.ctx.strokeStyle = z.sigColor
-    					z.ctx.lineWidth = (ping.type == 1)? z.lineWidth : z.lineWidth*3
-    					z.ctx.beginPath()
-    					z.ctx.arc(z.antPos.x, z.antPos.y, z.ppms*elapsed, 0, 2*Math.PI)
-    					z.ctx.stroke()
-    					z.ctx.restore()
-    				}
-    			})
-    }
-    const newPing = (type) => {
-    	z.pings.push({type, start: performance.now()})
-    	if (z.pings.length == 1) window.requestAnimationFrame(draw)
+			let text = (z.sound)? '🔈':'🔇'; // 230306: updated due to browser pref.
+			let btn = new Vec2f(z.can.width-btnWidth-5, z.can.height-btnWidth-5)
+			z.ctx.save()
+			z.ctx.font = '14pt monospace'
+			z.ctx.textAlign = 'center'
+			z.ctx.textBaseline = 'middle'
+			z.ctx.fillStyle = z.btnColor
+			z.ctx.fillRect(btn.x, btn.y, btnWidth, btnWidth)
+			z.ctx.fillStyle = z.antColor
+			z.ctx.fillText(text,btn.x+btnWidth/2, btn.y+btnWidth/2)
+			z.ctx.restore()
+			}
+	    const updatePings = (timer) => {
+	    	z.pings.forEach((ping, i) => {
+				let elapsed = timer-ping.start
+				if (elapsed<0) elapsed = 0
+				if (elapsed > z.ttl) z.pings.splice(i, 1)
+				else {
+					z.ctx.save()
+					z.ctx.strokeStyle = z.sigColor
+					z.ctx.lineWidth = (ping.type == 1)? z.lineWidth : z.lineWidth*3
+					z.ctx.beginPath()
+					z.ctx.arc(z.antPos.x, z.antPos.y, z.ppms*elapsed, 0, 2*Math.PI)
+					z.ctx.stroke()
+					z.ctx.restore()
+				}
+			})
+	    }
+		const newPing = (type) => {
+			z.pings.push({type, start: performance.now()})
 			// start sound
-    		if (z.ax != undefined && z.sound){
-    			window.setTimeout(stopSound, (type==1)? z.beacon.tickPeriod : 3*z.beacon.tickPeriod)
-    			z.ax.resume()
-    		}
-    	}
+			if (z.ax && z.sound){
+				z.gain.gain.value = 1; // turn on sound (230306 refactor)
+				// turn sound off at appropriate time
+				window.setTimeout(()=>{z.gain.gain.value = 0}, (type==1)? z.beacon.tickPeriod : 3*z.beacon.tickPeriod)
+			}
+		}
 
-    	const stopSound = () => {
-    		z.ax.suspend()
-    	}
+		const eClick = (e) => {
+			z.sound = !z.sound
+			if (z.sound) z.ax.resume();
+			else z.ax.suspend;
+		}
 
-    	const eClick = (e) => {
-    		z.sound = !z.sound
-    		stopSound()
-    	}
-
-    	const draw = (timer) => {
-    		z.ctx.clearRect(0,0, z.can.width, z.can.height)
-    		drawText()
-    		drawAntenna()
-    		drawButtons()
-    		if (z.pings.length > 0) {
-    			updatePings(timer)
-    			window.requestAnimationFrame(draw)
-    		}
-    	}
+		const draw = (timer) => {
+			z.ctx.clearRect(0,0, z.can.width, z.can.height)
+			drawText()
+			drawAntenna()
+			drawButtons()
+			if (z.pings.length > 0) {
+				updatePings(timer)
+			}
+			window.requestAnimationFrame(draw)
+		}
 
     	function init() {
     		z.can = document.getElementById('can')
-			// z.scale = ('devicePixelRatio' in window &&
-			// 	window.devicePixelRatio > 1)?
-			// 	window.devicePixelRatio : 1
     		z.beacon = new Beacon(newPing)
-    		z.beacon.play()
     		resizeCanvas()
 			// set up sound
+			// 230306: refactoring to use gain instead of ax.suspend()
     		const AudioFactory = window.AudioContext || window.webkitAudioContext
-    		if (AudioFactory == undefined) z.sound = false
-    			else {
-    				z.ax = new AudioFactory()
-    				const osc = z.ax.createOscillator()
-    				osc.type = 'sine'
-    				osc.frequency.value = z.frequency
-    				osc.connect(z.ax.destination)
-    				z.ax.suspend()
-    				osc.start()
-    				z.can.onclick = eClick
-    			}
-    			window.addEventListener('resize', resizeCanvas)
-    			window.requestAnimationFrame(draw)
-    		}
-    	</script>
-    </head>
-    <body onload="init()">
-    	<canvas id="can" class="j-dark"</canvas>
-    		<div class="container">
-    			<div class="row">
-    				<p>Welcome to my site.</p>
-    				<p>73,<br>Jon<br>W1JP</p>
-    			</div>
-    		</div>
-    		<!-- Optional JavaScript -->
-    		<!-- jQuery first, then Popper.js, then Bootstrap JS -->
-    		<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    		<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
-    		<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
-    	</body>
-    	</html>
+    		if (AudioFactory) {
+				z.ax = new AudioFactory()
+				z.ax.suspend();
+				z.osc = z.ax.createOscillator()
+				z.osc.type = 'sine'
+				z.osc.frequency.value = z.frequency
+				z.gain = z.ax.createGain();
+				z.gain.gain.value = 0;
+				z.osc.connect(z.gain);
+				z.gain.connect(z.ax.destination);
+				z.osc.start();
+				z.can.onclick = eClick
+			}
+			window.addEventListener('resize', resizeCanvas)
+    		z.beacon.play()
+			window.requestAnimationFrame(draw)
+    	}
+	</script>
+</head>
+<body onload="init()">
+	<canvas id="can" class="j-dark"></canvas>
+	<div class="container">
+		<div class="row">
+			<p>Welcome to my site.</p>
+			<p>73,<br>Jon<br>W1JP</p>
+		</div>
+	</div>
+	<!-- Optional JavaScript -->
+	<!-- jQuery first, then Popper.js, then Bootstrap JS -->
+	<script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.3/umd/popper.min.js" integrity="sha384-vFJXuSJphROIrBnz7yo7oB41mKfc8JzQZiCq4NCceLEaO4IHwicKwpJf9c9IpFgh" crossorigin="anonymous"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.2/js/bootstrap.min.js" integrity="sha384-alpBpkh1PFOepccYVYDB4do5UnbKysX5WZXm3XxPqe5iKTfUKjNkCk9SaVuEZflJ" crossorigin="anonymous"></script>
+</body>
+</html>
