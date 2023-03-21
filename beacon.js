@@ -114,7 +114,9 @@ class Beacon {
 		// handle tick
 		if (this.state != 1) return
 		let char = this.queue[0][this.iChar]
-		let symbol = this.morse.get(char)[this.iSym]
+		char = this.morse.get(char);
+		if (!char) char = this.morse.get(' '); // invalid characters are interpreted as spaces
+		let symbol = char[this.iSym];
 		let delay = 0 // used to set next timer
 		switch (symbol) {
 			case 0 :

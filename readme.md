@@ -1,6 +1,6 @@
 # W1JP
 This is my measly web site.
 
-The beacon code is old and needs to be refactored due to the changes to sound in the browser a few years ago.
+I have resently refactored the beacon code to support modern WebAudio changes.
 
 __--jon__
