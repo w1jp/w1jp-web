@@ -1,14 +1,16 @@
 // 171105 ©2017–2023 W1JP, Gatorbot LLC
 // 230315: updated for >ES6 support of private members and methods.
+// 240126: fixed 'b'
 
 // used to create symbol elements on the tick-scale
 // 0 = end
 // 1 = dit
 // 2 = dah
+// 3 = space
 const symbolTable = [
 	[' ',[3,0]],
 	['A',[1,2,0]],
-	['B',[1,1,1,2,0]],
+	['B',[2,1,1,1,0]],
 	['C',[2,1,2,1,0]],
 	['D',[2,1,1,0]],
 	['E',[1,0]],
@@ -47,8 +49,8 @@ const symbolTable = [
 	[',',[2,2,1,1,2,2,0]],
 	['?',[1,1,2,2,1,1,0]],
 	['/',[2,1,1,2,1,0]],
-	['+',[1,2,1,2,1,2,0]],
-	['=',[1,1,1,2,1,2,0]]
+	['+',[1,2,1,2,1,0]],
+	['=',[2,1,1,1,2,0]]
 ];
 
 class Beacon {
